@@ -1,0 +1,16 @@
+{
+  "name": "Kinh Thánh Suy Ngẫm",
+  "short_name": "Kinh Thánh",
+  "description": "Đọc Kinh Thánh, viết tay ghi chú, thẻ phân loại và theo dõi phần trăm đã đọc.",
+  "lang": "vi",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#e7eaee",
+  "theme_color": "#24466c",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ]
+}

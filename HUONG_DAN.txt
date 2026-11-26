@@ -1,0 +1,52 @@
+﻿ĐƯA ỨNG DỤNG KINH THÁNH LÊN GITHUB (KHÔNG CẦN BIẾT LẬP TRÌNH)
+
+Thư mục này chứa toàn bộ ứng dụng. Bạn chỉ cần kéo thả vào GitHub theo các bước dưới đây.
+Làm trên máy tính, bằng trình duyệt (Chrome hoặc Edge).
+
+BƯỚC 1. TẠO "KHO" MỚI
+1. Vào https://github.com và đăng nhập.
+2. Bấm dấu + ở góc trên bên phải, chọn "New repository".
+3. Ô "Repository name": gõ  kinhthanh   (chữ thường, không dấu, viết liền).
+4. Chọn "Public" (công khai). Tài khoản miễn phí bắt buộc phải chọn Public thì mới có link.
+5. KHÔNG tích vào các ô "Add a README"... Kéo xuống dưới, bấm "Create repository".
+
+BƯỚC 2. KÉO THẢ FILE LÊN
+1. Ở trang kho vừa tạo, bấm chữ "uploading an existing file".
+2. Mở thư mục này trên máy tính (thư mục GitHub), bấm Ctrl+A để chọn TẤT CẢ file và thư mục bên trong
+   (index.html, sw.js, manifest.webmanifest, hai file icon, và 7 file bible_*.json).
+   Không kéo cả thư mục "GitHub", chỉ kéo những thứ BÊN TRONG nó.
+3. Kéo thả vào khung trên trình duyệt. Chờ thanh tải chạy xong (có khoảng 30 MB, mất vài phút).
+4. Kéo xuống dưới, bấm nút xanh "Commit changes".
+
+BƯỚC 3. BẬT LINK
+1. Trong kho, bấm tab "Settings" (có hình bánh răng).
+2. Ở cột bên trái, bấm "Pages".
+3. Mục "Build and deployment" > "Source": chọn "Deploy from a branch".
+4. Mục "Branch": chọn "main", ô bên cạnh chọn "/ (root)", rồi bấm "Save".
+5. Chờ 1 đến 3 phút, tải lại trang Settings > Pages. Phía trên sẽ hiện dòng
+   "Your site is live at https://TÊN-CỦA-BẠN.github.io/kinhthanh/"
+   Đó là link ứng dụng của bạn. Mở thử trên máy tính.
+
+BƯỚC 4. DÙNG TRÊN ĐIỆN THOẠI VÀ MÁY TÍNH BẢNG
+- Android (Chrome): mở link, bấm dấu ba chấm, chọn "Cài đặt ứng dụng" hoặc "Thêm vào màn hình chính".
+- iPhone, iPad (Safari): mở link bằng Safari, bấm nút Chia sẻ, chọn "Thêm vào Màn hình chính".
+- Máy tính (Chrome, Edge): bấm biểu tượng cài đặt ở thanh địa chỉ, hoặc nút "Cài vào màn hình chính" trong bảng ⋯.
+
+CHUYỂN GHI CHÚ GIỮA CÁC THIẾT BỊ
+Ghi chú, nét viết, thẻ và % đã đọc lưu trong trình duyệt của từng thiết bị, không tự đồng bộ.
+- Bấm nút ⋯ trên thanh trên cùng > "Sao lưu ra file". Gửi file này sang thiết bị kia
+  (qua Zalo, email hoặc Google Drive), rồi ở thiết bị kia bấm "Khôi phục từ file".
+- Hãy sao lưu thỉnh thoảng. Nếu xóa dữ liệu trình duyệt thì ghi chú mất.
+- Mỗi thiết bị nên chọn cùng một trình duyệt để dùng thường xuyên.
+
+CHUYỂN GHI CHÚ TỪ BẢN TRÊN CLAUDE.AI
+Mở bản trên claude.ai, bấm ⋯ > "Sao lưu ra file". Rồi mở bản GitHub, bấm ⋯ > "Khôi phục từ file".
+(Ghi chú viết trên Bản Phổ Thông 2011 sẽ không hiện ở bản GitHub, vì bản này không đưa lên.)
+
+CẬP NHẬT SAU NÀY
+Khi có bản mới, vào kho, bấm "Add file" > "Upload files", kéo thả các file mới (trùng tên sẽ được thay).
+
+BẢN QUYỀN
+Các bản dịch trong ứng dụng: Truyền Thống 1925, KJV, ASV, WEB, BSB là phạm vi công cộng.
+Kinh Thánh Hiện Đại: Biblica, giấy phép CC BY-SA 4.0 (đã ghi nguồn cuối mỗi trang).
+NET Bible: dùng theo quyền do Biblical Studies Press cho phép (đã ghi nguồn cuối trang).
