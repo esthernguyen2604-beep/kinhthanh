@@ -376,6 +376,7 @@ body.pen-on .paper{-webkit-user-select:none;user-select:none}
         <input type="file" id="bkFile" accept=".json,application/json" hidden>
         <p class="hint" id="bkHint" style="margin-top:8px"></p>
         <div id="bkConfirm" hidden style="margin-top:8px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--paper)"></div>
+        <div id="updBox" style="margin-top:8px;display:flex;flex-wrap:wrap;align-items:center;gap:10px"><button type="button" class="btn" id="updBtn">Kiểm tra cập nhật</button><span class="hint" id="updVer"></span></div>
         <div id="installBox" hidden style="margin-top:8px"><button type="button" class="btn" id="installBtn">Cài vào màn hình chính</button></div>
         <p class="hint" id="installHint" style="margin-top:8px" hidden></p>
       </div>
@@ -1462,6 +1463,7 @@ function renderSettings(){
     b.onclick=()=>{applyTheme(p.id);renderSettings();};th.append(b);
   });
   $('#typoHint').textContent=typoHintText();$('#bkHint').textContent=bkHintText();renderInstallHint();
+  $('#updBox').hidden=Store.cloud;$('#updVer').textContent=APP_VERSION==='dev'?'':'Phiên bản '+APP_VERSION;
 }
 /* sao lưu, khôi phục, cài ứng dụng */
 function bkHintText(){return Store.cloud?'Ghi chú đang lưu trong tài khoản Claude của bạn. Sao lưu ra file để chuyển sang bản chạy độc lập hoặc để giữ một bản dự phòng.':'Ghi chú, nét viết, thẻ và % đã đọc nằm trong trình duyệt của thiết bị này, các thiết bị khác không tự thấy. Sao lưu ra file rồi khôi phục trên thiết bị kia để chuyển sang. Xóa dữ liệu trình duyệt sẽ mất ghi chú, nên nhớ sao lưu thỉnh thoảng.';}
@@ -1510,6 +1512,20 @@ $('#bkFile').onchange=async e=>{
     }catch(err){toast(`Khôi phục dừng ở mục ${done+1}/${keys.length}. ${saveErr(err)}`);yes.disabled=no.disabled=false;}
   };
   row.append(yes,no);box.append(row);
+};
+const APP_VERSION='2026-11-27.1041';
+$('#updBtn').onclick=async()=>{
+  const b=$('#updBtn');b.disabled=true;
+  try{
+    const r=await fetch('index.html?chk='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('http');
+    const m=/const APP_VERSION='([^']+)'/.exec(await r.text());const nv=m&&m[1];
+    if(!nv)throw new Error('ver');
+    if(nv===APP_VERSION){toast('Bạn đang dùng bản mới nhất.');return;}
+    try{const reg=navigator.serviceWorker&&await navigator.serviceWorker.getRegistration();if(reg)await reg.update();}catch(e){}
+    try{const c=await caches.open('ktsn-v1');await c.delete('index.html');await c.delete('./');}catch(e){}
+    toast('Có bản mới. Đang cập nhật…');await sleep(900);location.reload();
+  }catch(e){toast('Chưa kiểm tra được. Hãy kiểm tra mạng rồi thử lại.');}
+  finally{b.disabled=false;}
 };
 let installEv=null;
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEv=e;$('#installBox').hidden=false;});
