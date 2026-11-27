@@ -247,6 +247,7 @@ body.pen-on .paper{-webkit-user-select:none;user-select:none}
 .recent{display:flex;flex-wrap:wrap;gap:8px}
 .recent button{min-height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--paper);cursor:pointer;font-size:13px;color:var(--ink)}
 
+.sinput{display:block;width:100%;box-sizing:border-box;min-height:42px;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);padding:0 12px;font:15px var(--f-ui);margin:4px 0 10px}
 .notehead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
 #noteText{display:block;width:100%;box-sizing:border-box;min-height:120px;resize:vertical;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);font:17px/1.6 var(--f-text)}
 .nbtext.mine{color:var(--ink);-webkit-line-clamp:5;white-space:pre-wrap}
@@ -469,6 +470,15 @@ body.ui-on .bottombar{transform:none}
       <div><h3 class="lbl">Màu giao diện</h3><div class="themes" id="themeRow"></div></div>
       <div><h3 class="lbl">Trang này</h3>
         <div class="lhrow" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button type="button" id="setTags">Gắn thẻ cho trang</button><button type="button" id="setExt">Mở ở bản khác</button></div>
+      </div>
+      <div id="syncBox"><h3 class="lbl">Đồng bộ qua GitHub</h3>
+        <p class="hint" id="syncHint" style="margin-bottom:8px"></p>
+        <label for="syncRepo" class="hint">Kho riêng tư (tên-người-dùng/tên-kho)</label>
+        <input id="syncRepo" class="sinput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ten-ban/kinhthanh-ghichu">
+        <label for="syncToken" class="hint">Chìa khóa (token) GitHub</label>
+        <input id="syncToken" class="sinput" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="dán chìa khóa vào đây">
+        <div class="lhrow" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button type="button" id="syncSave">Lưu và đồng bộ</button><button type="button" id="syncOff">Tắt đồng bộ</button></div>
+        <p class="hint" id="syncMsg" style="margin-top:8px"></p>
       </div>
       <div><h3 class="lbl">Sao lưu và chuyển máy</h3>
         <div class="lhrow" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button type="button" id="bkExport">Sao lưu ra file</button><button type="button" id="bkImport">Khôi phục từ file</button></div>
@@ -777,6 +787,8 @@ const Store={
   },
   save(key,data){
     if(!this.cloud){
+      if(DOC_KEY.test(key))markTomb(key,data==null);
+      syncSoon();
       this.lq=(this.lq||Promise.resolve()).then(async()=>{
         try{
           if(IDB.db){if(data==null)await IDB.del(key);else await IDB.put(key,data);}
@@ -1273,7 +1285,7 @@ function toggleRead(b,c){
   if(!Store.ready||!Store.isLoaded('progress')){toast('Đang tải tiến độ đọc, bạn thử lại sau giây lát.');return;}
   const k=chKey(b,c);const r=Object.assign({},S.read);
   if(r[k])delete r[k];else r[k]=todayISO();
-  S.read=r;Store.save('progress',{kind:'progress',read:r});refreshProgress();
+  S.read=r;Store.save('progress',{kind:'progress',read:r,updated:Date.now()});refreshProgress();
 }
 let progOpen=new Set();
 function renderProgress(){
@@ -1339,7 +1351,7 @@ function renderBooks(){
 }
 
 /* ---------- tags ---------- */
-function saveTags(){Store.save('tags',{kind:'tags',list:S.tags});}
+function saveTags(){Store.save('tags',{kind:'tags',list:S.tags,updated:Date.now()});}
 function createTag(name){
   name=String(name||'').replace(/\s+/g,' ').trim().slice(0,40);if(!name)return null;
   if(!Store.ready||!Store.isLoaded('tags')){toast('Đang tải danh sách thẻ, bạn thử lại sau giây lát.');return null;}
@@ -1713,10 +1725,115 @@ function renderSettings(){
     b.append(sw,document.createTextNode(p.name));
     b.onclick=()=>{applyTheme(p.id);renderSettings();};th.append(b);
   });
-  $('#typoHint').textContent=typoHintText();$('#bkHint').textContent=bkHintText();renderInstallHint();
+  $('#typoHint').textContent=typoHintText();$('#bkHint').textContent=bkHintText();renderInstallHint();renderSyncUi();
   $('#updBox').hidden=Store.cloud;$('#updVer').textContent=APP_VERSION==='dev'?'':'Phiên bản '+APP_VERSION;
 }
 /* sao lưu, khôi phục, cài ứng dụng */
+/* đồng bộ qua kho riêng tư trên GitHub */
+const SYNC_FILE='sync.json';
+function syncCfg(){const c=LS.get('sync',null);return c&&typeof c==='object'&&c.token&&/^[\w.-]+\/[\w.-]+$/.test(c.repo||'')?c:null;}
+function tombs(){const t=LS.get('tomb',{});return t&&typeof t==='object'&&!Array.isArray(t)?t:{};}
+function markTomb(key,on){const t=tombs();if(on)t[key]=Date.now();else if(key in t)delete t[key];else return;LS.set('tomb',t);}
+function toB64(str){const b=new TextEncoder().encode(str);let s='';for(let i=0;i<b.length;i+=0x8000)s+=String.fromCharCode.apply(null,b.subarray(i,i+0x8000));return btoa(s);}
+function fromB64(b64){const s=atob(String(b64).replace(/\s/g,''));const b=new Uint8Array(s.length);for(let i=0;i<s.length;i++)b[i]=s.charCodeAt(i);return new TextDecoder().decode(b);}
+function ghHeaders(cfg,accept){return{Authorization:'Bearer '+cfg.token,Accept:accept||'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'};}
+async function ghGet(cfg){
+  const url=`https://api.github.com/repos/${cfg.repo}/contents/${SYNC_FILE}`;
+  const r=await fetch(url+'?t='+Date.now(),{headers:ghHeaders(cfg),cache:'no-store'});
+  if(r.status===404){
+    const rr=await fetch(`https://api.github.com/repos/${cfg.repo}`,{headers:ghHeaders(cfg),cache:'no-store'});
+    if(rr.status===404||rr.status===401||rr.status===403)throw new Error(rr.status===404?'norepo':'auth');
+    return{sha:null,data:{docs:{},del:{}}};
+  }
+  if(r.status===401||r.status===403)throw new Error('auth');
+  if(!r.ok)throw new Error('http');
+  const j=await r.json();let text;
+  if(j.content&&j.encoding==='base64'&&j.content.length)text=fromB64(j.content);
+  else{const r2=await fetch(url,{headers:ghHeaders(cfg,'application/vnd.github.raw+json'),cache:'no-store'});if(!r2.ok)throw new Error('http');text=await r2.text();}
+  let data;try{data=JSON.parse(text);}catch(e){throw new Error('bad');}
+  return{sha:j.sha,data:{docs:data&&typeof data.docs==='object'?data.docs:{},del:data&&typeof data.del==='object'?data.del:{}}};
+}
+async function ghPut(cfg,sha,obj){
+  const body={message:'Đồng bộ ghi chú',content:toB64(JSON.stringify({app:'kinh-thanh-suy-ngam',version:1,synced:new Date().toISOString(),docs:obj.docs,del:obj.del}))};
+  if(sha)body.sha=sha;
+  const r=await fetch(`https://api.github.com/repos/${cfg.repo}/contents/${SYNC_FILE}`,{method:'PUT',headers:Object.assign({'Content-Type':'application/json'},ghHeaders(cfg)),body:JSON.stringify(body)});
+  if(r.status===409||r.status===422)throw new Error('conflict');
+  if(r.status===404)throw new Error('norepo');
+  if(r.status===401||r.status===403)throw new Error('auth');
+  if(!r.ok)throw new Error('http');
+}
+function mergeSync(local,remote){
+  const docs={},del={};
+  const keys=new Set([...Object.keys(local.docs),...Object.keys(remote.docs),...Object.keys(local.del),...Object.keys(remote.del)]);
+  for(const k of keys){
+    if(!DOC_KEY.test(k))continue;
+    const ld=local.docs[k],rd=remote.docs[k];
+    const lu=ld&&+ld.updated||0,ru=rd&&+rd.updated||0;
+    const dt=Math.max(+local.del[k]||0,+remote.del[k]||0);
+    let best=null,bu=-1;
+    if(ld&&typeof ld==='object'){best=ld;bu=lu;}
+    if(rd&&typeof rd==='object'&&ru>bu){best=rd;bu=ru;}
+    if(dt>0&&dt>bu)del[k]=dt;else if(best)docs[k]=best;
+  }
+  return{docs,del};
+}
+let syncing=false,syncTimer=0;
+function setSyncMsg(t){const e=$('#syncMsg');if(e)e.textContent=t;}
+function syncTimeText(){const t=+LS.get('syncAt',0);if(!t)return'';const d=new Date(t);return `Lần đồng bộ gần nhất: ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} ${fmtTime(t)}.`;}
+function syncSoon(){if(!syncCfg()||Store.cloud)return;clearTimeout(syncTimer);syncTimer=setTimeout(()=>syncNow(false),20000);}
+async function syncNow(manual){
+  const cfg=syncCfg();if(!cfg||Store.cloud||!Store.ready)return;
+  if(syncing)return;
+  if(!navigator.onLine){if(manual)setSyncMsg('Đang không có mạng. Sẽ đồng bộ khi có mạng lại.');return;}
+  syncing=true;setSyncMsg('Đang đồng bộ…');
+  try{
+    flushInk();saveNote();if(Store.lq)await Store.lq;
+    let stats=null;
+    for(let attempt=0;attempt<4&&!stats;attempt++){
+      const remote=await ghGet(cfg);
+      const local={docs:await Store.allDocs(),del:tombs()};
+      const m=mergeSync(local,remote.data);
+      let pulled=0;
+      for(const k of Object.keys(m.docs)){if(m.docs[k]!==local.docs[k]){await Store.put(k,m.docs[k]);pulled++;}}
+      for(const k of Object.keys(m.del)){if(local.docs[k]){if(IDB.db)await IDB.del(k);else localStorage.removeItem('ktsn.doc.'+k);pulled++;}}
+      LS.set('tomb',m.del);
+      const rd=remote.data;
+      const need=Object.keys(m.docs).some(k=>m.docs[k]!==rd.docs[k])||Object.keys(rd.docs).some(k=>!(k in m.docs))||Object.keys(m.del).some(k=>m.del[k]!==+rd.del[k]);
+      if(need){try{await ghPut(cfg,remote.sha,m);}catch(e){if(e.message==='conflict'&&attempt<3)continue;throw e;}}
+      stats={pulled,pushed:need};
+    }
+    LS.set('syncAt',Date.now());
+    if(stats&&stats.pulled){await Store.loadLocal();renderChapter(true);}
+    setSyncMsg(`Đã đồng bộ.${stats&&stats.pulled?` Nhận ${stats.pulled} mục mới từ máy khác.`:''} ${syncTimeText()}`);
+    if(manual)toast('Đã đồng bộ.');
+  }catch(e){
+    const msg={auth:'Chìa khóa không đúng, hết hạn hoặc thiếu quyền. Hãy tạo lại chìa khóa.',norepo:'Không thấy kho. Kiểm tra tên kho và chìa khóa có quyền với kho đó.',bad:'File đồng bộ trên GitHub bị hỏng. Hãy báo để được trợ giúp.',conflict:'Hai máy cùng đồng bộ một lúc. Hãy thử lại.'}[e&&e.message]||'Chưa kết nối được GitHub. Hãy kiểm tra mạng rồi thử lại.';
+    setSyncMsg(msg);if(manual)toast(msg);
+  }finally{syncing=false;}
+}
+function renderSyncUi(){
+  const box=$('#syncBox');if(!box)return;box.hidden=!!Store.cloud;if(Store.cloud)return;
+  const cfg=LS.get('sync',null)||{};
+  const host=location.hostname.endsWith('.github.io')?location.hostname.split('.')[0]:'';
+  $('#syncRepo').value=cfg.repo||(host?`${host}/kinhthanh-ghichu`:'');
+  $('#syncToken').value='';$('#syncToken').placeholder=syncCfg()?'đã lưu chìa khóa (bỏ trống để giữ)':'dán chìa khóa vào đây';
+  $('#syncHint').textContent=syncCfg()?'Đang bật. Ghi chú tự đẩy lên kho riêng tư của bạn khi mở ứng dụng và sau khi bạn lưu. Chìa khóa chỉ lưu trong máy này.':'Tạo kho riêng tư và chìa khóa trên GitHub (xem file HUONG_DAN_CAP_NHAT.txt), rồi nhập vào đây một lần trên mỗi thiết bị.';
+  $('#syncOff').disabled=!syncCfg();
+  setSyncMsg(syncCfg()?syncTimeText():'');
+}
+$('#syncSave').onclick=async()=>{
+  const repo=$('#syncRepo').value.trim().replace(/^https?:\/\/github\.com\//,'').replace(/\.git$/,'').replace(/\/$/,'');
+  const old=LS.get('sync',null)||{};const token=$('#syncToken').value.trim()||old.token||'';
+  if(!/^[\w.-]+\/[\w.-]+$/.test(repo)){setSyncMsg('Tên kho phải có dạng tên-người-dùng/tên-kho.');return;}
+  if(!token){setSyncMsg('Bạn chưa dán chìa khóa.');return;}
+  LS.set('sync',{repo,token});renderSyncUi();await syncNow(true);
+};
+$('#syncOff').onclick=()=>{try{localStorage.removeItem('ktsn.sync');}catch(e){}clearTimeout(syncTimer);renderSyncUi();setSyncMsg('Đã tắt đồng bộ và xóa chìa khóa khỏi máy này. Ghi chú trên máy vẫn còn.');};
+window.addEventListener('online',syncSoon);
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden'){if(syncCfg()&&!syncing)syncNow(false);}
+  else if(syncCfg()&&Date.now()-(+LS.get('syncAt',0))>60000)syncNow(false);
+});
 function bkHintText(){return Store.cloud?'Ghi chú đang lưu trong tài khoản Claude của bạn. Sao lưu ra file để chuyển sang bản chạy độc lập hoặc để giữ một bản dự phòng.':'Ghi chú, nét viết, thẻ và % đã đọc nằm trong trình duyệt của thiết bị này, các thiết bị khác không tự thấy. Sao lưu ra file rồi khôi phục trên thiết bị kia để chuyển sang. Xóa dữ liệu trình duyệt sẽ mất ghi chú, nên nhớ sao lưu thỉnh thoảng.';}
 async function saveFile(name,text){
   const blob=new Blob([text],{type:'application/json'});
@@ -1764,7 +1881,7 @@ $('#bkFile').onchange=async e=>{
   };
   row.append(yes,no);box.append(row);
 };
-const APP_VERSION='2026-11-27.1235';
+const APP_VERSION='2026-11-27.1251';
 $('#updBtn').onclick=async()=>{
   const b=$('#updBtn');b.disabled=true;
   try{
@@ -1946,7 +2063,7 @@ document.addEventListener('keydown',e=>{
 applyTheme(S.theme);applyTypo(globalEff());placeUI();
 setStatus('conn');setMode('read');setView(LS.get('view','med'));updatePct();renderChapter();
 if(!window.claude&&'serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});}
-Store.init().then(()=>{if(versesEl.childElementCount&&!S.inkReady)loadInk(renderToken);renderPenHint();});
+Store.init().then(()=>{if(versesEl.childElementCount&&!S.inkReady)loadInk(renderToken);renderPenHint();if(syncCfg())setTimeout(()=>syncNow(false),1500);});
 })();
 </script>
 </body></html>
