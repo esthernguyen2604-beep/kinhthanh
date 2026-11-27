@@ -247,6 +247,7 @@ body.ui-on .bottombar{transform:none}
 .bottombar .btn{min-height:44px}
 .bottombar #bRead{flex:1 1 auto}
 @media (prefers-reduced-motion:reduce){.chrome,.bottombar{transition:none}}
+#pagebar{display:none!important}
 /* so sánh bản dịch */
 .cmplist{display:flex;flex-direction:column;gap:18px}
 .cmphead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:8px}
@@ -424,6 +425,9 @@ body.ui-on .bottombar{transform:none}
       <div><h3 class="lbl">Giãn dòng</h3><div class="lhrow" id="lhRow"></div></div>
       <div><h3 class="lbl">Kiểu chữ</h3><div class="fontrow" id="fontRow"></div></div>
       <div><h3 class="lbl">Màu giao diện</h3><div class="themes" id="themeRow"></div></div>
+      <div><h3 class="lbl">Trang này</h3>
+        <div class="lhrow" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button type="button" id="setTags">Gắn thẻ cho trang</button><button type="button" id="setExt">Mở ở bản khác</button></div>
+      </div>
       <div><h3 class="lbl">Sao lưu và chuyển máy</h3>
         <div class="lhrow" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button type="button" id="bkExport">Sao lưu ra file</button><button type="button" id="bkImport">Khôi phục từ file</button></div>
         <input type="file" id="bkFile" accept=".json,application/json" hidden>
@@ -1644,7 +1648,7 @@ $('#bkFile').onchange=async e=>{
   };
   row.append(yes,no);box.append(row);
 };
-const APP_VERSION='2026-11-27.1202';
+const APP_VERSION='2026-11-27.1204';
 $('#updBtn').onclick=async()=>{
   const b=$('#updBtn');b.disabled=true;
   try{
@@ -1672,6 +1676,8 @@ function renderInstallHint(){
 $('#fsDown').onclick=()=>setTypo({fs:S.typo.fs-FS_STEP});
 $('#fsUp').onclick=()=>setTypo({fs:S.typo.fs+FS_STEP});
 $('#moreBtn').onclick=()=>{renderSettings();showSheet('setSheet');};
+$('#setTags').onclick=()=>{closeSheets();openPageTags();};
+$('#setExt').onclick=()=>{closeSheets();openExt($('#moreBtn'));};
 $('#modeRead').onclick=()=>setMode('read');
 $('#modePen').onclick=()=>setMode('pen');
 $('#nbBtn').onclick=()=>{nbEditing=false;nbConfirm=null;renderNotebook();showSheet('nbSheet');};
