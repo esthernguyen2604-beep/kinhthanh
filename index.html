@@ -95,6 +95,8 @@ button,input,select{font:inherit;color:inherit}
 .tog{min-height:36px;padding:0 10px;border-radius:999px;border:1px solid var(--line);background:transparent;cursor:pointer;font-size:13px;color:var(--ink);white-space:nowrap}
 .tog[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);border-color:transparent}
 .penhint{font-size:12px;color:var(--muted);white-space:nowrap}
+.penrow2{display:contents}
+.penDone{display:none}
 
 /* page */
 main{padding-top:14px}
@@ -303,6 +305,29 @@ body.ui-on .bottombar{transform:none}
   #trSel{min-height:36px;font-size:13px;max-width:150px}
   #nbBtn .t,#pctLabel .t,#modePen .t,#statusText,.brand,.status{display:none}
   #trSel{flex:1 1 140px;min-width:140px;max-width:100%}
+  /* chế độ viết trên điện thoại: thanh bút gọn ở đáy, ẩn thanh trên */
+  body.pen-on{padding-bottom:calc(112px + env(safe-area-inset-bottom,0px))}
+  body.pen-on .chrome{transform:translateY(-115%)}
+  body.pen-on .bottombar{display:none}
+  #penSlot{position:fixed;left:0;right:0;bottom:0;z-index:31;background:var(--panel);border-top:1px solid var(--line);box-shadow:var(--shadow);
+    padding:0 max(12px,env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0px) max(12px,env(safe-area-inset-left,0px))}
+  .penbar{gap:4px 8px;padding-block:6px;align-items:center}
+  .penbar .sep,#penHint,.sizebox label{display:none}
+  .penbar .tool{width:34px;height:36px;border-radius:8px}
+  .penbar .tool span{display:none}
+  .penbar .tool svg{width:28px;height:14px}
+  #toolBtns{order:1;gap:0}
+  #histGrp{order:2;gap:2px}
+  #undoBtn,#redoBtn{width:32px;min-height:34px;padding:0}
+  .penDone{display:inline-flex!important;order:3;margin-left:auto;min-height:34px;padding:0 10px;font-size:13px}
+  .penrow2{display:flex;flex:1 0 100%;order:4;align-items:center;gap:14px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+  .penrow2::-webkit-scrollbar{display:none}
+  .penrow2>*{flex:none}
+  .penbar .sw,.penbar .swc{width:26px;height:26px}
+  .penbar .sizebox input{width:84px}
+  .penbar .dotbox{width:34px;height:34px}
+  .penbar .tog{min-height:32px;font-size:12px;padding:0 10px}
+  .sheet .penDone{display:none!important}
   .themes{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
   .tht .sw2{aspect-ratio:1/1;padding:0 16%;gap:5px}
   .tht{font-size:11px}
@@ -351,20 +376,23 @@ body.ui-on .bottombar{transform:none}
     <div class="penbar" id="penbar" role="toolbar" aria-label="Bút viết">
       <div class="pg" id="toolBtns"></div>
       <span class="sep"></span>
-      <div class="pg" id="swatches"></div>
-      <span class="sep" id="swSep"></span>
-      <div class="pg sizebox"><label for="sizeR">Độ dày</label><input type="range" id="sizeR" min="1" max="8" step="0.2"><span class="dotbox"><i id="sizeDot"></i></span></div>
-      <span class="sep"></span>
-      <div class="pg">
-        <button type="button" class="tog" id="straightBtn" aria-pressed="false">Kẻ thẳng</button>
-        <button type="button" class="tog" id="fingerBtn" aria-pressed="false">Vẽ bằng ngón tay</button>
+      <div class="penrow2" id="penRow2">
+        <div class="pg" id="swatches"></div>
+        <span class="sep" id="swSep"></span>
+        <div class="pg sizebox"><label for="sizeR">Độ dày</label><input type="range" id="sizeR" min="1" max="8" step="0.2"><span class="dotbox"><i id="sizeDot"></i></span></div>
+        <span class="sep"></span>
+        <div class="pg" id="togGrp">
+          <button type="button" class="tog" id="straightBtn" aria-pressed="false">Kẻ thẳng</button>
+          <button type="button" class="tog" id="fingerBtn" aria-pressed="false">Vẽ bằng ngón tay</button>
+        </div>
       </div>
       <span class="sep"></span>
-      <div class="pg">
+      <div class="pg" id="histGrp">
         <button type="button" class="btn iconbtn" id="undoBtn" aria-label="Hoàn tác nét vừa viết"></button>
         <button type="button" class="btn iconbtn" id="redoBtn" aria-label="Làm lại"></button>
       </div>
       <span class="penhint" id="penHint"></span>
+      <button type="button" class="btn primary penDone" id="penDone">Xong</button>
     </div>
   </div>
 </div>
@@ -1568,6 +1596,9 @@ $('#bPrev').onclick=()=>$('#prevBtn').click();$('#bNext').onclick=()=>$('#nextBt
 const NARROW=()=>window.innerWidth<700;
 const chromeEl=$('#chrome');
 function placeUI(){
+  const ps=$('#penSlot');
+  if(NARROW()){if(ps.parentElement!==document.body)document.body.append(ps);}
+  else if(ps.parentElement!==chromeEl)chromeEl.append(ps);
   const pb=$('#pagebar');
   if(NARROW()){if(pb.parentElement!==chromeEl)chromeEl.append(pb);}
   else{const m=$('main');if(pb.parentElement!==m)m.insertBefore(pb,m.firstChild);document.body.classList.remove('ui-on');}
@@ -1685,7 +1716,7 @@ $('#bkFile').onchange=async e=>{
   };
   row.append(yes,no);box.append(row);
 };
-const APP_VERSION='2026-11-27.1224';
+const APP_VERSION='2026-11-27.1228';
 $('#updBtn').onclick=async()=>{
   const b=$('#updBtn');b.disabled=true;
   try{
@@ -1717,6 +1748,7 @@ $('#setTags').onclick=()=>{closeSheets();openPageTags();};
 $('#setExt').onclick=()=>{closeSheets();openExt($('#moreBtn'));};
 $('#modeRead').onclick=()=>setMode('read');
 $('#modePen').onclick=()=>setMode('pen');
+$('#penDone').onclick=()=>setMode('read');
 $('#nbBtn').onclick=()=>{nbEditing=false;nbConfirm=null;renderNotebook();showSheet('nbSheet');};
 $('#pctBtn').onclick=()=>{renderProgress();showSheet('progSheet');};
 $('#readBtn').onclick=()=>toggleRead(S.b,S.c);
