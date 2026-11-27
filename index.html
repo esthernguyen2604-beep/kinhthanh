@@ -129,12 +129,19 @@ main{padding-top:14px}
 body:not(.pen-on) .v{cursor:pointer}
 body:not(.view-med) .vmark,body:not(.view-med) .v.inote::before{display:none}
 body:not(.view-med):not(.pen-on) #hlSvg,body:not(.view-med):not(.pen-on) #inkSvg{visibility:hidden}
+body:not(.view-med):not(.pen-on) .v.hlc .vt{background:none}
 body.view-med .v.hasnote{background:color-mix(in srgb,var(--gilt) 14%,transparent);box-shadow:0 0 0 4px color-mix(in srgb,var(--gilt) 14%,transparent)}
-.v.sel,body.view-med .v.hasnote.sel{background:color-mix(in srgb,var(--accent) 14%,transparent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 14%,transparent)}
+.v.vsel,body.view-med .v.hasnote.vsel{background:color-mix(in srgb,var(--accent) 14%,transparent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 14%,transparent)}
 .v.inote::before{content:"";position:absolute;left:-10px;top:5px;bottom:5px;width:2px;border-radius:2px;background:var(--gilt);opacity:.75}
 .selbar{position:fixed;left:0;right:0;margin-inline:auto;width:fit-content;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);z-index:25;display:flex;flex-wrap:wrap;align-items:center;gap:8px;
   max-width:calc(100% - 32px);background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:8px 8px 8px 14px}
 .selref{font:600 14px var(--f-ui);padding-right:4px}
+.selcolors{display:flex;align-items:center;gap:8px;flex:1 0 100%;order:2}
+.selbar>*:not(.selcolors):not(.selref){order:3}
+.selbar .selref{order:1}
+.hdot{width:36px;height:36px;border-radius:50%;border:2px solid var(--paper);box-shadow:0 0 0 1px var(--line);padding:0;cursor:pointer;flex:none;display:grid;place-items:center;color:var(--ink);font:600 15px/1 var(--f-ui)}
+.hdot.clr{background:var(--paper);box-shadow:0 0 0 1px var(--line)}
+.v.hlc .vt{background:color-mix(in srgb,var(--hlc) calc(var(--hl-op,.42) * 130%),transparent);-webkit-box-decoration-break:clone;box-decoration-break:clone;border-radius:3px}
 .vquote .qv{font:600 11px var(--f-ui);color:var(--gilt);margin-right:2px}
 .fn{position:relative;font:600 13px/0 var(--f-ui);vertical-align:super;color:var(--accent);cursor:pointer;padding:0 2px;margin-left:1px;border-radius:3px}
 .fn::after{content:"";position:absolute;left:-8px;right:-8px;top:-14px;bottom:-14px}
@@ -492,6 +499,7 @@ body.ui-on .bottombar{transform:none}
 
 <div class="selbar" id="selBar" role="toolbar" aria-label="Câu đang chọn" hidden>
   <span class="selref" id="selRef"></span>
+  <div class="selcolors" id="selColors" role="group" aria-label="Tô màu nhanh"></div>
   <button type="button" class="btn primary" id="selNote">Tạo ghi chú</button>
   <button type="button" class="btn" id="selCmp">So sánh</button>
   <button type="button" class="btn" id="selCopy">Sao chép</button>
@@ -669,7 +677,7 @@ const IDB={
     }catch(e){}
   }
 };
-const DOC_KEY=/^(pg|vn|vni|ink):[^\s]{1,200}$|^(tags|progress)$/;
+const DOC_KEY=/^(pg|vn|vni|ink|hl):[^\s]{1,200}$|^(tags|progress)$/;
 const PREF_KEYS=['pen','typo','ptheme','view','pos'];
 const Store={
   ready:false,cloud:false,col:null,q:new Map(),busy:0,failed:false,
@@ -707,7 +715,7 @@ const Store={
     let confirmed=false;
     const timer=setTimeout(()=>{if(!confirmed)setStatus('wait');},10000);
     const done=()=>{if(confirmed)return;confirmed=true;clearTimeout(timer);if(!this.busy)setStatus('saved');};
-    this.col.where('kind','in',['pg','vn']).onSnapshot(snap=>{
+    this.col.where('kind','in',['pg','vn','hl']).onSnapshot(snap=>{
       const m={};snap.docs.forEach(d=>{if(d.exists){const v=d.data();if(v)m[d.id]=v;}});
       S.meta=m;if(!snap.metadata.fromCache)done();this.markLoaded('meta');refreshMeta();
     },e=>{done();toast('Không tải được ghi chú. '+saveErr(e));});
@@ -719,11 +727,11 @@ const Store={
     try{
       if(IDB.db){
         for(const k of await IDB.keys()){
-          if(/^(pg|vn):/.test(k)){const v=await IDB.get(k);if(v&&typeof v==='object')m[k]=v;}
+          if(/^(pg|vn|hl):/.test(k)){const v=await IDB.get(k);if(v&&typeof v==='object')m[k]=v;}
           else if(k==='tags')tags=await IDB.get(k);else if(k==='progress')prog=await IDB.get(k);
         }
       }else{
-        for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.indexOf('ktsn.doc.')===0){const id=k.slice(9);if(/^(pg|vn):/.test(id)){try{m[id]=JSON.parse(localStorage.getItem(k));}catch(e){}}}}
+        for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.indexOf('ktsn.doc.')===0){const id=k.slice(9);if(/^(pg|vn|hl):/.test(id)){try{m[id]=JSON.parse(localStorage.getItem(k));}catch(e){}}}}
         tags=LS.get('doc.tags',null);prog=LS.get('doc.progress',null);
       }
     }catch(e){toast('Chưa đọc được ghi chú đã lưu trên máy này.');}
@@ -1144,7 +1152,26 @@ function updatePageMeta(b,c,patch){
 
 /* ---------- markers, page bar, chapter end ---------- */
 function noteKeysIn(b,c){const bid=BOOKS[b][0];return Object.keys(S.meta).filter(k=>{const d=S.meta[k];return d&&d.kind==='vn'&&d.b===bid&&d.c===c&&noteVs(d).length;});}
+const HL_QUICK=[['#ffd43b','Vàng'],['#8ce99a','Xanh lá'],['#91d5ff','Xanh dương'],['#ffa8c5','Hồng'],['#ffc078','Cam'],['#d0bfff','Tím']];
+const hlKey=(b,c)=>`hl:${BOOKS[b][0]}:${c}`;
+const hlOf=(b,c,v)=>{const d=S.meta[hlKey(b,c)];return d&&d.v&&typeof d.v==='object'&&/^#[0-9a-f]{6}$/i.test(d.v[v]||'')?d.v[v]:null;};
+function renderHl(){
+  versesEl.querySelectorAll('.v.hlc').forEach(e=>{e.classList.remove('hlc');e.style.removeProperty('--hlc');});
+  const d=S.meta[hlKey(S.b,S.c)];if(!d||!d.v)return;
+  for(const v in d.v){const col=d.v[v];if(!/^#[0-9a-f]{6}$/i.test(col))continue;const el=versesEl.querySelector(`.v[data-v="${v}"]`);if(el){el.classList.add('hlc');el.style.setProperty('--hlc',col);}}
+}
+function applyHl(color){
+  const vs=[...S.sel];if(!vs.length)return;
+  const key=hlKey(S.b,S.c);const cur=S.meta[key];
+  const v=Object.assign({},cur&&cur.v);
+  vs.forEach(n=>{if(color)v[n]=color;else delete v[n];});
+  if(!Object.keys(v).length){delete S.meta[key];Store.save(key,null);}
+  else{const doc={kind:'hl',b:BOOKS[S.b][0],bi:S.b,c:S.c,v,updated:Date.now()};S.meta[key]=doc;Store.save(key,doc);}
+  if(color&&S.view==='plain')setView('med');
+  renderHl();clearSel();
+}
 function updateMarkers(){
+  renderHl();
   versesEl.querySelectorAll('.vmark').forEach(e=>e.remove());
   versesEl.querySelectorAll('.v.inote,.v.hasnote').forEach(e=>e.classList.remove('inote','hasnote'));
   const groups={};
@@ -1163,10 +1190,13 @@ function updateMarkers(){
   }
 }
 function renderSel(){
-  versesEl.querySelectorAll('.v.sel').forEach(e=>e.classList.remove('sel'));
-  S.sel.forEach(v=>{const el=versesEl.querySelector(`.v[data-v="${v}"]`);if(el)el.classList.add('sel');});
+  versesEl.querySelectorAll('.v.vsel').forEach(e=>e.classList.remove('vsel'));
+  S.sel.forEach(v=>{const el=versesEl.querySelector(`.v[data-v="${v}"]`);if(el)el.classList.add('vsel');});
   const bar=$('#selBar');if(!S.sel.size||S.mode!=='read'){bar.hidden=true;return;}
   const vs=[...S.sel].sort((a,b)=>a-b);$('#selRef').textContent=`${refVs(S.b,S.c,vs)} · ${vs.length} câu`;bar.hidden=false;
+  const cols=$('#selColors');cols.textContent='';
+  HL_QUICK.forEach(([hex,name])=>{const b=mk('button','hdot');b.type='button';b.style.background=hex;b.setAttribute('aria-label','Tô màu '+name);b.title=name;b.onclick=()=>applyHl(hex);cols.append(b);});
+  if(vs.some(v=>hlOf(S.b,S.c,v))){const x=mk('button','hdot clr','✕');x.type='button';x.setAttribute('aria-label','Bỏ tô màu');x.title='Bỏ tô màu';x.onclick=()=>applyHl(null);cols.append(x);}
 }
 function toggleSel(v){if(S.sel.has(v))S.sel.delete(v);else S.sel.add(v);renderSel();}
 function clearSel(){S.sel.clear();renderSel();}
@@ -1655,7 +1685,7 @@ $('#bkFile').onchange=async e=>{
   };
   row.append(yes,no);box.append(row);
 };
-const APP_VERSION='2026-11-27.1213';
+const APP_VERSION='2026-11-27.1224';
 $('#updBtn').onclick=async()=>{
   const b=$('#updBtn');b.disabled=true;
   try{
