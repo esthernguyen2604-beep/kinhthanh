@@ -403,6 +403,7 @@ body.ui-on .bottombar{transform:none}
         <div class="padloading" id="padLoading" hidden>Đang mở trang ghi chú…</div>
       </div>
     </div>
+    <button type="button" class="btn" id="padMore" style="align-self:flex-start">+ Thêm chỗ viết</button>
     <div><h3 class="lbl">Thẻ phân loại</h3><div id="noteTags"></div></div>
     <div class="cardfoot"><button type="button" class="btn danger" id="noteDel">Xóa ghi chú này</button><span class="hint">Tự lưu khi bạn viết hoặc chọn thẻ.</span></div>
   </div>
@@ -498,7 +499,7 @@ body.ui-on .bottombar{transform:none}
 (function(){
 'use strict';
 const NS='http://www.w3.org/2000/svg';
-let PAPER_W=880;const BOTTOM=288, PADW=720, PADH=432;
+let PAPER_W=880,PADH=432;const BOTTOM=288, PADW=720;
 
 const BOOKS=[["GEN","Sáng Thế Ký","Genesis"],["EXO","Xuất Ê-díp-tô Ký","Exodus"],["LEV","Lê-vi Ký","Leviticus"],["NUM","Dân Số Ký","Numbers"],["DEU","Phục Truyền Luật Lệ Ký","Deuteronomy"],["JOS","Giô-suê","Joshua"],["JDG","Các Quan Xét","Judges"],["RUT","Ru-tơ","Ruth"],["1SA","I Sa-mu-ên","1 Samuel"],["2SA","II Sa-mu-ên","2 Samuel"],["1KI","I Các Vua","1 Kings"],["2KI","II Các Vua","2 Kings"],["1CH","I Sử Ký","1 Chronicles"],["2CH","II Sử Ký","2 Chronicles"],["EZR","E-xơ-ra","Ezra"],["NEH","Nê-hê-mi","Nehemiah"],["EST","Ê-xơ-tê","Esther"],["JOB","Gióp","Job"],["PSA","Thi Thiên","Psalms"],["PRO","Châm Ngôn","Proverbs"],["ECC","Truyền Đạo","Ecclesiastes"],["SNG","Nhã Ca","Song of Solomon"],["ISA","Ê-sai","Isaiah"],["JER","Giê-rê-mi","Jeremiah"],["LAM","Ca Thương","Lamentations"],["EZK","Ê-xê-chi-ên","Ezekiel"],["DAN","Đa-ni-ên","Daniel"],["HOS","Ô-sê","Hosea"],["JOL","Giô-ên","Joel"],["AMO","A-mốt","Amos"],["OBA","Áp-đia","Obadiah"],["JON","Giô-na","Jonah"],["MIC","Mi-chê","Micah"],["NAM","Na-hum","Nahum"],["HAB","Ha-ba-cúc","Habakkuk"],["ZEP","Sô-phô-ni","Zephaniah"],["HAG","A-ghê","Haggai"],["ZEC","Xa-cha-ri","Zechariah"],["MAL","Ma-la-chi","Malachi"],["MAT","Ma-thi-ơ","Matthew"],["MRK","Mác","Mark"],["LUK","Lu-ca","Luke"],["JHN","Giăng","John"],["ACT","Công Vụ Các Sứ Đồ","Acts"],["ROM","Rô-ma","Romans"],["1CO","I Cô-rinh-tô","1 Corinthians"],["2CO","II Cô-rinh-tô","2 Corinthians"],["GAL","Ga-la-ti","Galatians"],["EPH","Ê-phê-sô","Ephesians"],["PHP","Phi-líp","Philippians"],["COL","Cô-lô-se","Colossians"],["1TH","I Tê-sa-lô-ni-ca","1 Thessalonians"],["2TH","II Tê-sa-lô-ni-ca","2 Thessalonians"],["1TI","I Ti-mô-thê","1 Timothy"],["2TI","II Ti-mô-thê","2 Timothy"],["TIT","Tít","Titus"],["PHM","Phi-lê-môn","Philemon"],["HEB","Hê-bơ-rơ","Hebrews"],["JAS","Gia-cơ","James"],["1PE","I Phi-e-rơ","1 Peter"],["2PE","II Phi-e-rơ","2 Peter"],["1JN","I Giăng","1 John"],["2JN","II Giăng","2 John"],["3JN","III Giăng","3 John"],["JUD","Giu-đe","Jude"],["REV","Khải Huyền","Revelation"]];
 const BIDX=Object.fromEntries(BOOKS.map((b,i)=>[b[0],i]));
@@ -825,7 +826,7 @@ class InkSurface{
     if(e.pointerType==='touch'){
       if(this.penDown||this.drawing||this.erasing)return;
       if(!PEN.finger){
-        if(this.pannable){const w=$('#stagewrap');this.panning={id:e.pointerId,x:e.clientX,y:e.clientY,sx:window.scrollX,sy:window.scrollY,wl:w.scrollLeft};try{this.cap.setPointerCapture(e.pointerId);}catch(_){}}
+        if(this.pannable){const sb=this.scrollBox?this.scrollBox():null;const w=$('#stagewrap');this.panning={id:e.pointerId,x:e.clientX,y:e.clientY,sx:window.scrollX,sy:sb?sb.scrollTop:window.scrollY,wl:w.scrollLeft,sb};try{this.cap.setPointerCapture(e.pointerId);}catch(_){}}
         return;
       }
     }
@@ -842,17 +843,18 @@ class InkSurface{
   }
   move(e){
     if(this.panning&&e.pointerId===this.panning.id){
-      const P=this.panning;window.scrollTo(P.sx,P.sy-(e.clientY-P.y));$('#stagewrap').scrollLeft=P.wl-(e.clientX-P.x);return;
+      const P=this.panning;if(P.sb){P.sb.scrollTop=P.sy-(e.clientY-P.y);return;}
+      window.scrollTo(P.sx,P.sy-(e.clientY-P.y));$('#stagewrap').scrollLeft=P.wl-(e.clientX-P.x);return;
     }
     if(this.erasing&&e.pointerId===this.erasing.id){
       const evs=e.getCoalescedEvents?e.getCoalescedEvents():[];(evs.length?evs:[e]).forEach(ev=>this.eraseAt(this.pt(ev)));return;
     }
     const d=this.drawing;if(!d||e.pointerId!==d.id)return;
     e.preventDefault();
-    if(d.straight){d.end=this.pt(e);}
+    if(d.straight){d.end=this.pt(e);if(this.grow)this.grow(d.end[1]);}
     else{
       const evs=e.getCoalescedEvents?e.getCoalescedEvents():[];
-      for(const ev of (evs.length?evs:[e])){const p=this.pt(ev);const l=d.pts[d.pts.length-1];if(Math.abs(p[0]-l[0])+Math.abs(p[1]-l[1])>.3)d.pts.push(p);}
+      for(const ev of (evs.length?evs:[e])){const p=this.pt(ev);const l=d.pts[d.pts.length-1];if(Math.abs(p[0]-l[0])+Math.abs(p[1]-l[1])>.3)d.pts.push(p);if(this.grow)this.grow(p[1]);}
     }
     if(!this.raf)this.raf=requestAnimationFrame(()=>{this.raf=0;this.live();});
   }
@@ -927,7 +929,8 @@ function anchorOf(y){const L=S.topList;let lo=0,hi=L.length-1,ans=0;while(lo<=hi
 function topOf(a){const t=S.tops[a];if(t!=null)return t;let best=0;for(const [v,y] of S.topList)if(v<=a)best=y;return best;}
 const reader=new InkSurface({box:paper,cap:$('#cap'),hl:hlSvg,ink:inkSvg,ecur:$('#ecur'),pannable:true,
   scale:()=>S.scale,anchorOf,topOf,enabled:()=>S.mode==='pen'&&S.inkReady,changed:()=>onReaderChange()});
-const padSurface=new InkSurface({box:$('#pad'),cap:$('#padCap'),hl:$('#padHl'),ink:$('#padInk'),ecur:$('#padEcur'),pannable:false,
+const padSurface=new InkSurface({box:$('#pad'),cap:$('#padCap'),hl:$('#padHl'),ink:$('#padInk'),ecur:$('#padEcur'),pannable:true,scrollBox:()=>$('#noteSheet'),
+  grow:y=>{if(y>PADH-120)setPadH(PADH+300);},
   scale:()=>S.padScale,anchorOf:()=>0,topOf:()=>0,enabled:()=>!!(note&&note.loaded),changed:()=>onPadChange()});
 let active=reader;
 function updateHist(){$('#undoBtn').disabled=!active.undo.length;$('#redoBtn').disabled=!active.redo.length;}
@@ -1301,6 +1304,13 @@ function openPageTags(){
 
 /* ---------- verse note pad ---------- */
 let note=null,padTimer=0;
+function setPadH(h){
+  PADH=Math.max(432,Math.round(h));$('#pad').style.height=PADH+'px';
+  for(const id of ['padHl','padInk']){const s=$('#'+id);s.setAttribute('height',PADH);s.setAttribute('viewBox',`0 0 ${PADW} ${PADH}`);}
+  layoutPad();
+}
+function padMaxY(){let m=0;padSurface.geo.forEach(g=>{if(g.y1>m)m=g.y1;});return m;}
+function fitPad(){setPadH(Math.max(432,padMaxY()+260));}
 function layoutPad(){const w=$('#padWrap').clientWidth;if(!w)return;S.padScale=Math.min(1.3,w/PADW);$('#pad').style.transform=`scale(${S.padScale})`;$('#padWrap').style.height=Math.round(PADH*S.padScale)+'px';}
 function openNoteForSel(){
   const vs=[...S.sel].sort((a,b)=>a-b);if(!vs.length)return;
@@ -1320,7 +1330,7 @@ function openNoteKey(key,vsNew){
 }
 async function loadNoteInk(key,m){
   showSheet('noteSheet');$('#padPenSlot').append($('#penbar'));active=padSurface;renderPenbar();
-  padSurface.setStrokes([]);layoutPad();
+  padSurface.setStrokes([]);setPadH(432);
   tagPicker($('#noteTags'),'newTagNote',()=>note?note.tags:[],id=>{if(!note)return;const i=note.tags.indexOf(id);if(i>=0)note.tags.splice(i,1);else note.tags.push(id);note.dirty=true;saveNote();});
   resetDel();
   const pl=$('#padLoading');
@@ -1330,7 +1340,7 @@ async function loadNoteInk(key,m){
   try{d=await Store.get(note.ikey);}
   catch(e){if(note&&note.key===key)pl.textContent='Chưa mở được ghi chú này. Hãy đóng rồi mở lại.';return;}
   if(!note||note.key!==key)return;
-  padSurface.setStrokes(d&&Array.isArray(d.strokes)?d.strokes:[]);note.loaded=true;pl.hidden=true;
+  padSurface.setStrokes(d&&Array.isArray(d.strokes)?d.strokes:[]);fitPad();note.loaded=true;pl.hidden=true;
 }
 $('#noteText').addEventListener('input',e=>{if(!note)return;note.text=e.target.value;note.dirty=true;clearTimeout(padTimer);padTimer=setTimeout(saveNote,900);});
 $('#noteInsert').onclick=()=>{
@@ -1342,7 +1352,8 @@ $('#noteInsert').onclick=()=>{
   ta.value=pre+lead+ins+post;const pos=(pre+lead+ins).length;ta.focus();ta.setSelectionRange(pos,pos);
   note.text=ta.value;note.dirty=true;clearTimeout(padTimer);padTimer=setTimeout(saveNote,900);
 };
-function onPadChange(){if(!note)return;note.dirty=true;clearTimeout(padTimer);padTimer=setTimeout(saveNote,900);}
+$('#padMore').onclick=()=>{setPadH(PADH+432);const sb=$('#noteSheet');setTimeout(()=>{sb.scrollTo({top:sb.scrollTop+300,behavior:'smooth'});},50);};
+function onPadChange(){if(!note)return;const my=padMaxY();if(my+200>PADH)setPadH(my+360);note.dirty=true;clearTimeout(padTimer);padTimer=setTimeout(saveNote,900);}
 function saveNote(){
   clearTimeout(padTimer);if(!note||!note.dirty)return;note.dirty=false;
   const n=note;const strokes=padSurface.strokes.slice();const bid=BOOKS[n.b][0];
@@ -1437,7 +1448,8 @@ async function loadThumb(el){
   let c=thumbs.get(key);
   if(!c||c.u!==m.updated){let d=null;try{d=await Store.get('vni'+key.slice(2));}catch(e){}c={u:m.updated,s:d&&Array.isArray(d.strokes)?d.strokes.filter(validStroke):[]};thumbs.set(key,c);}
   if(!el.isConnected)return;el.textContent='';
-  const mkSvg=cls=>{const s=document.createElementNS(NS,'svg');s.setAttribute('viewBox',`0 0 ${PADW} ${PADH}`);s.setAttribute('class',cls);s.setAttribute('preserveAspectRatio','xMidYMid meet');return s;};
+  let TH=432;for(const s of c.s)for(let i=1;i<s.p.length;i+=3)TH=Math.max(TH,s.p[i]/2+30);TH=Math.min(Math.round(TH),1500);el.style.aspectRatio=`${PADW}/${TH}`;
+  const mkSvg=cls=>{const s=document.createElementNS(NS,'svg');s.setAttribute('viewBox',`0 0 ${PADW} ${TH}`);s.setAttribute('class',cls);s.setAttribute('preserveAspectRatio','xMidYMid meet');return s;};
   const h=mkSvg('hl'),k=mkSvg('ink');
   for(const s of c.s){const pts=[];for(let i=0;i+2<s.p.length;i+=3)pts.push([s.p[i]/2,s.p[i+1]/2,clamp(s.p[i+2]/100,.05,1)]);if(pts.length)(s.t==='dq'?h:k).append(strokeEl(s.t,pts,s.c,+s.w,!!s.sp,!!s.st));}
   if(!c.s.length){const t=mk('span','hint','Chỉ có thẻ, chưa viết gì');t.style.cssText='position:absolute;left:12px;top:10px';el.append(t);}
@@ -1632,7 +1644,7 @@ $('#bkFile').onchange=async e=>{
   };
   row.append(yes,no);box.append(row);
 };
-const APP_VERSION='2026-11-27.1158';
+const APP_VERSION='2026-11-27.1202';
 $('#updBtn').onclick=async()=>{
   const b=$('#updBtn');b.disabled=true;
   try{
