@@ -1447,7 +1447,52 @@ $('#noteDel').onclick=()=>{
 $('#noteDone').onclick=closeNote;
 
 /* ---------- notebook ---------- */
-let nbTag='all',nbEditing=false,nbConfirm=null;const thumbs=new Map();let io=null;
+let nbTag='all',nbEditing=false,nbConfirm=null,nbHlColor=null;
+function hlRuns(){
+  const out=[];
+  for(const k in S.meta){
+    const d=S.meta[k];if(!d||d.kind!=='hl'||!d.v||typeof d.v!=='object')continue;
+    const b=bookOf(d);if(b<0||!Number.isInteger(d.c))continue;
+    const vs=Object.keys(d.v).map(Number).filter(n=>n>0&&/^#[0-9a-f]{6}$/i.test(d.v[n]||'')).sort((x,y)=>x-y);
+    let run=null;
+    for(const v of vs){
+      const col=d.v[v].toLowerCase();
+      if(run&&run.color===col&&v===run.vs[run.vs.length-1]+1)run.vs.push(v);
+      else{run={b,c:d.c,color:col,vs:[v],updated:d.updated||0};out.push(run);}
+    }
+  }
+  return out.sort((a,b)=>(b.updated-a.updated)||(a.b-b.b)||(a.c-b.c)||(a.vs[0]-b.vs[0]));
+}
+function renderHlList(list){
+  const all=hlRuns();const n=all.reduce((s,r)=>s+r.vs.length,0);
+  $('#nbSub').textContent=n?`${n} câu đã tô màu. Chạm một mục để mở đúng câu đó.`:'Các câu bạn tô màu sẽ hiện ở đây.';
+  if(!n){const e=mk('div','empty');e.textContent='Chưa có câu nào được tô màu. Ở chế độ Đọc, chạm vào một câu rồi chạm một chấm màu.';list.append(e);return;}
+  const used=[...new Set(all.map(r=>r.color))];
+  if(nbHlColor&&!used.includes(nbHlColor))nbHlColor=null;
+  const row=mk('div','tagrow');row.style.marginBottom='12px';
+  const allB=mk('button','tag','Mọi màu');allB.type='button';allB.style.setProperty('--h',212);allB.setAttribute('aria-pressed',nbHlColor?'false':'true');allB.onclick=()=>{nbHlColor=null;renderNotebook();};row.append(allB);
+  HL_QUICK.forEach(([hex,name])=>{
+    const cnt=all.filter(r=>r.color===hex).reduce((s,r)=>s+r.vs.length,0);if(!cnt)return;
+    const b=mk('button','hdot');b.type='button';b.style.background=hex;b.setAttribute('aria-label',`${name}: ${cnt} câu`);b.title=`${name}: ${cnt} câu`;
+    b.setAttribute('aria-pressed',nbHlColor===hex?'true':'false');if(nbHlColor===hex)b.style.boxShadow='0 0 0 3px var(--accent)';
+    b.onclick=()=>{nbHlColor=nbHlColor===hex?null:hex;renderNotebook();};row.append(b);
+  });
+  list.append(row);
+  const shown=all.filter(r=>!nbHlColor||r.color===nbHlColor);
+  const grid=mk('div','nblist');
+  shown.forEach(r=>{
+    const card=mk('button','nbcard');card.type='button';card.style.borderLeft=`6px solid ${r.color}`;
+    const ref=mk('div','nbref');ref.append(mk('span','',refVs(r.b,r.c,r.vs)),mk('small','',fmtTime(r.updated)));card.append(ref);
+    const t=r.vs.map(v=>verseText(r.b,r.c,v)).filter(Boolean).map(fmtVerse).join(' ');
+    if(t){const p=mk('p','nbtext');p.style.color='var(--ink)';p.style.webkitLineClamp='5';p.innerHTML=t;card.append(p);}
+    card.onclick=()=>{
+      closeSheets();S.b=r.b;S.c=r.c;
+      renderChapter().then(()=>{S.noUiUntil=Date.now()+800;const el=versesEl.querySelector(`.v[data-v="${r.vs[0]}"]`);if(el)el.scrollIntoView({block:'center'});});
+    };
+    grid.append(card);
+  });
+  list.append(grid);
+}const thumbs=new Map();let io=null;
 function nbItems(){
   const out=[];
   for(const k in S.meta){const d=S.meta[k];const b=bookOf(d);if(b<0||!Number.isInteger(d.c))continue;
@@ -1461,7 +1506,9 @@ function renderNotebook(){
   const tools=$('#nbTools');tools.textContent='';
   const count=id=>items.filter(it=>(it.d.tags||[]).includes(id)).length;
   const all=mk('button','tag');all.type='button';all.style.setProperty('--h',212);all.setAttribute('aria-pressed',nbTag==='all'?'true':'false');all.append(document.createTextNode('Tất cả'),mk('span','n',String(items.length)));all.onclick=()=>{nbTag='all';renderNotebook();};tools.append(all);
-  if(nbTag!=='all'&&!tagById(nbTag))nbTag='all';
+  const hlN=Object.values(S.meta).reduce((s,d)=>s+(d&&d.kind==='hl'&&d.v?Object.keys(d.v).length:0),0);
+  const hc=mk('button','tag');hc.type='button';hc.style.setProperty('--h',48);hc.setAttribute('aria-pressed',nbTag==='hl'?'true':'false');hc.append(document.createTextNode('Đã tô màu'),mk('span','n',String(hlN)));hc.onclick=()=>{nbTag='hl';renderNotebook();};tools.append(hc);
+  if(nbTag!=='all'&&nbTag!=='hl'&&!tagById(nbTag))nbTag='all';
   S.tags.forEach(t=>{const c=tagChip(t,nbTag===t.id,count(t.id));c.onclick=()=>{nbTag=t.id;renderNotebook();};tools.append(c);});
   const ed=mk('button','btn ghost',nbEditing?'Xong sửa thẻ':'Sửa thẻ');ed.type='button';ed.style.minHeight='32px';ed.onclick=()=>{nbEditing=!nbEditing;nbConfirm=null;renderNotebook();};tools.append(ed);
   const edBox=$('#nbEdit');edBox.hidden=!nbEditing;edBox.textContent='';
@@ -1481,6 +1528,7 @@ function renderNotebook(){
     });
   }
   const list=$('#nbList');list.textContent='';if(io)io.disconnect();
+  if(nbTag==='hl'){renderHlList(list);return;}
   const shown=items.filter(it=>nbTag==='all'||(it.d.tags||[]).includes(nbTag)).sort((a,b)=>(b.d.updated||0)-(a.d.updated||0));
   if(!shown.length){
     const e=mk('div','empty');
@@ -1716,7 +1764,7 @@ $('#bkFile').onchange=async e=>{
   };
   row.append(yes,no);box.append(row);
 };
-const APP_VERSION='2026-11-27.1228';
+const APP_VERSION='2026-11-27.1235';
 $('#updBtn').onclick=async()=>{
   const b=$('#updBtn');b.disabled=true;
   try{
