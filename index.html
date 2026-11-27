@@ -381,7 +381,7 @@ body.pen-on .paper{-webkit-user-select:none;user-select:none}
       <div><h3 class="lbl">Cỡ chữ</h3><div class="sizeset"><button type="button" id="fsDown" aria-label="Chữ nhỏ hơn" style="font-size:16px">A</button><span id="fsVal" class="tnum"></span><button type="button" id="fsUp" aria-label="Chữ lớn hơn" style="font-size:26px">A</button></div></div>
       <div><h3 class="lbl">Giãn dòng</h3><div class="lhrow" id="lhRow"></div></div>
       <div><h3 class="lbl">Kiểu chữ</h3><div class="fontrow" id="fontRow"></div></div>
-      <div><h3 class="lbl">Màu trang</h3><div class="themes" id="themeRow"></div></div>
+      <div><h3 class="lbl">Màu giao diện</h3><div class="themes" id="themeRow"></div></div>
       <div><h3 class="lbl">Sao lưu và chuyển máy</h3>
         <div class="lhrow" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button type="button" id="bkExport">Sao lưu ra file</button><button type="button" id="bkImport">Khôi phục từ file</button></div>
         <input type="file" id="bkFile" accept=".json,application/json" hidden>
@@ -941,22 +941,32 @@ const PTHEMES=[
   {id:'den',name:'Đen',bg:'#000000',ink:'#cfcfcf',dark:true}
 ];
 const PTMAP=Object.fromEntries(PTHEMES.map(t=>[t.id,t]));
-const THEME_VARS=['--paper','--ink','--rule','--muted','--gilt','--accent','--chip','--ink-filter','--hl-blend','--hl-op'];
+const THEME_VARS=['--bg','--paper','--panel','--ink','--line','--rule','--muted','--gilt','--accent','--on-accent','--chip','--danger','--ok','--scrim','--shadow','--ink-filter','--hl-blend','--hl-op','color-scheme'];
 S.theme=PTMAP[LS.get('ptheme','auto')]?LS.get('ptheme','auto'):'auto';
 function applyTheme(id){
   const t=PTMAP[id]||PTMAP.auto;S.theme=t.id;LS.set('ptheme',t.id);
-  const st=paper.style;
-  if(t.id==='auto'){THEME_VARS.forEach(v=>st.removeProperty(v));return;}
-  const d=!!t.dark;
-  st.setProperty('--paper',t.bg);st.setProperty('--ink',t.ink);
-  st.setProperty('--rule',`${MIXD}${t.ink} ${d?16:13}%,transparent)`);
-  st.setProperty('--muted',`${MIXD}${t.ink} 62%,${t.bg})`);
-  st.setProperty('--chip',`${MIXD}${t.ink} 9%,${t.bg})`);
+  const st=document.documentElement.style;
+  THEME_VARS.forEach(v=>{st.removeProperty(v);paper.style.removeProperty(v);});
+  if(t.id==='auto'){return;}
+  const d=!!t.dark,p=t.bg,k=t.ink;
+  st.setProperty('--paper',p);st.setProperty('--ink',k);
+  st.setProperty('--bg',d?`${MIXD}#000 45%,${p})`:`${MIXD}${k} 8%,${p})`);
+  st.setProperty('--panel',d?`${MIXD}#fff 6%,${p})`:`${MIXD}${k} 4%,${p})`);
+  st.setProperty('--line',`${MIXD}${k} ${d?22:16}%,${p})`);
+  st.setProperty('--rule',`${MIXD}${k} ${d?16:13}%,transparent)`);
+  st.setProperty('--muted',`${MIXD}${k} 62%,${p})`);
+  st.setProperty('--chip',`${MIXD}${k} 9%,${p})`);
   st.setProperty('--gilt',d?'#d4b062':'#94722a');
   st.setProperty('--accent',d?'#9bbce4':'#24466c');
+  st.setProperty('--on-accent',d?'#0e1621':'#ffffff');
+  st.setProperty('--danger',d?'#ec8079':'#a3302a');
+  st.setProperty('--ok',d?'#84c99c':'#2f6b44');
+  st.setProperty('--scrim',d?'rgba(0,0,0,.6)':'rgba(14,20,28,.45)');
+  st.setProperty('--shadow',d?'0 1px 2px rgba(0,0,0,.45),0 10px 30px rgba(0,0,0,.35)':'0 1px 2px rgba(24,34,48,.10),0 10px 30px rgba(24,34,48,.10)');
   st.setProperty('--ink-filter',d?'invert(1) hue-rotate(180deg)':'none');
   st.setProperty('--hl-blend',d?'normal':'multiply');
   st.setProperty('--hl-op',d?'.32':'.42');
+  st.setProperty('color-scheme',d?'dark':'light');
 }
 function fontReady(t){
   const f=FONTS[t.ff];if(!f||!document.fonts||!document.fonts.load)return Promise.resolve();
@@ -1459,7 +1469,7 @@ function setView(v){
 $('#viewBtn').onclick=()=>{setView(S.view==='med'?'plain':'med');toast(S.view==='med'?'Đã bật: hiện ghi chú, màu tô và nét viết.':'Đã tắt: trang sạch để đọc.');};
 
 /* bảng chữ và trang */
-function typoHintText(){return S.pageLock?'Trang đang mở có nét viết tay nên giữ cỡ chữ, giãn dòng và kiểu chữ lúc viết để nét luôn khớp chữ. Cài đặt mới áp dụng cho các trang khác. Màu trang đổi được ngay.':'Trang đã viết tay sẽ giữ cỡ chữ, giãn dòng và kiểu chữ lúc viết để nét luôn khớp chữ. Màu trang đổi được cho mọi trang.';}
+function typoHintText(){return S.pageLock?'Trang đang mở có nét viết tay nên giữ cỡ chữ, giãn dòng và kiểu chữ lúc viết để nét luôn khớp chữ. Cài đặt mới áp dụng cho các trang khác. Màu giao diện đổi được ngay.':'Trang đã viết tay sẽ giữ cỡ chữ, giãn dòng và kiểu chữ lúc viết để nét luôn khớp chữ. Màu giao diện đổi được cho mọi trang.';}
 function setTypo(patch){
   S.typo=cleanTypo(Object.assign({},S.typo,patch));LS.set('typo',S.typo);
   if(S.pageLock){toast('Trang này có nét viết nên giữ chữ cũ. Cài đặt áp dụng cho trang khác.');}
@@ -1534,7 +1544,7 @@ $('#bkFile').onchange=async e=>{
   };
   row.append(yes,no);box.append(row);
 };
-const APP_VERSION='2026-11-27.1118';
+const APP_VERSION='2026-11-27.1125';
 $('#updBtn').onclick=async()=>{
   const b=$('#updBtn');b.disabled=true;
   try{
