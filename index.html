@@ -231,6 +231,17 @@ body.pen-on .paper{-webkit-user-select:none;user-select:none}
 .recent{display:flex;flex-wrap:wrap;gap:8px}
 .recent button{min-height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--paper);cursor:pointer;font-size:13px;color:var(--ink)}
 
+/* so sánh bản dịch */
+.cmplist{display:flex;flex-direction:column;gap:18px}
+.cmphead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:8px}
+.cmphead b{font:700 15px var(--f-ui)}
+.cmphead span{font:600 14px var(--f-ui);color:var(--muted);text-align:right}
+.cmpq{margin:0;padding:2px 0 2px 16px;border-left:3px solid var(--ink);font:18px/1.7 var(--f-text)}
+.cmpq.cur{border-left-color:var(--accent)}
+.cmpq sup{font:600 11px var(--f-ui);color:var(--muted);margin-right:3px}
+.cmpq .cref{display:block;margin-top:8px;font:700 13px var(--f-ui)}
+.cmprm{border:0;background:none;color:var(--muted);cursor:pointer;font:500 12px var(--f-ui);padding:4px 0}
+#cmpPick .tagrow{margin:0 0 4px}
 /* settings */
 .sheet.bottom{align-items:flex-end}
 .sheet.bottom .card{border-radius:16px 16px 12px 12px}
@@ -385,6 +396,15 @@ body.pen-on .paper{-webkit-user-select:none;user-select:none}
   </div>
 </div>
 
+<div class="sheet" id="cmpSheet" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="cmpTitle">
+    <div class="cardhead"><div><h2 id="cmpTitle">So sánh các bản dịch</h2><div class="sub" id="cmpSub"></div></div><button type="button" class="btn iconbtn" data-close aria-label="Đóng">✕</button></div>
+    <div id="cmpList" class="cmplist"></div>
+    <div id="cmpPick" hidden></div>
+    <div class="cardfoot"><button type="button" class="btn" id="cmpAdd">+ Thêm phiên bản</button><button type="button" class="btn" id="cmpCopy">Sao chép tất cả</button></div>
+  </div>
+</div>
+
 <div class="sheet" id="nbSheet" hidden>
   <div class="card" role="dialog" aria-modal="true" aria-labelledby="nbTitle">
     <div class="cardhead"><div><h2 id="nbTitle">Sổ suy ngẫm</h2><div class="sub" id="nbSub"></div></div><button type="button" class="btn iconbtn" data-close aria-label="Đóng">✕</button></div>
@@ -420,6 +440,7 @@ body.pen-on .paper{-webkit-user-select:none;user-select:none}
 <div class="selbar" id="selBar" role="toolbar" aria-label="Câu đang chọn" hidden>
   <span class="selref" id="selRef"></span>
   <button type="button" class="btn primary" id="selNote">Tạo ghi chú</button>
+  <button type="button" class="btn" id="selCmp">So sánh</button>
   <button type="button" class="btn" id="selCopy">Sao chép</button>
   <button type="button" class="btn iconbtn" id="selClear" aria-label="Bỏ chọn">✕</button>
 </div>
@@ -1397,7 +1418,7 @@ function setMode(m){
   if(m==='pen'){S.sel.clear();closeFn();closeNp();}
   renderSel();renderPagebar();
 }
-const SHEETS=['booksSheet','noteSheet','ptSheet','nbSheet','progSheet','setSheet'];
+const SHEETS=['booksSheet','noteSheet','ptSheet','nbSheet','progSheet','setSheet','cmpSheet'];
 function showSheet(id){$('#'+id).hidden=false;document.body.classList.add('sheet-open');}
 function afterSheet(){if(SHEETS.every(id=>$('#'+id).hidden))document.body.classList.remove('sheet-open');}
 function closeSheets(){if(!$('#noteSheet').hidden)closeNote();SHEETS.forEach(id=>{$('#'+id).hidden=true;});afterSheet();}
@@ -1513,7 +1534,7 @@ $('#bkFile').onchange=async e=>{
   };
   row.append(yes,no);box.append(row);
 };
-const APP_VERSION='2026-11-27.1041';
+const APP_VERSION='2026-11-27.1118';
 $('#updBtn').onclick=async()=>{
   const b=$('#updBtn');b.disabled=true;
   try{
@@ -1554,6 +1575,59 @@ versesEl.addEventListener('click',e=>{
   const sel=window.getSelection&&window.getSelection();if(sel&&!sel.isCollapsed&&versesEl.contains(sel.anchorNode))return;
   const v=e.target.closest('.v');if(v)toggleSel(+v.dataset.v);
 });
+/* so sánh bản dịch */
+const CMP_AB={vi1925:'BTT',vihd:'KTHĐ',vi2011:'BPT',kjv:'KJV',asv:'ASV',web:'WEB',net:'NET',bsb:'BSB'};
+const cmpAb=id=>CMP_AB[id]||id.toUpperCase();
+let cmpIds=(()=>{const a=LS.get('cmp',null);const ok=Array.isArray(a)?a.filter(x=>TRMAP[x]):[];return ok.length?ok:['vi1925','vihd','kjv'].filter(x=>TRMAP[x]);})();
+let cmpCtx=null;
+const vtOf=(id,b,c,v)=>{const B=S.bible[id];return B&&B[b]&&B[b][c-1]&&B[b][c-1][v-1]||'';};
+function openCompare(){
+  const vs=[...S.sel].sort((a,b)=>a-b);if(!vs.length)return;
+  cmpCtx={b:S.b,c:S.c,vs};$('#cmpPick').hidden=true;
+  showSheet('cmpSheet');renderCompare();
+}
+async function renderCompare(){
+  const x=cmpCtx;if(!x)return;
+  $('#cmpTitle').textContent='So sánh các bản dịch';$('#cmpSub').textContent=refVs(x.b,x.c,x.vs);
+  const list=$('#cmpList');list.textContent='';
+  const ids=[S.tr,...cmpIds.filter(i=>i!==S.tr)].filter(i=>TRMAP[i]);
+  const blocks=ids.map(id=>{
+    const wrap=mk('div');const t=TRMAP[id];
+    const head=mk('div','cmphead');head.append(mk('b','',cmpAb(id)),mk('span','',t.name));
+    const q=mk('blockquote','cmpq'+(id===S.tr?' cur':''));q.textContent=S.bible[id]?'':'Đang tải bản này…';
+    wrap.append(head,q);
+    if(id!==S.tr){const rm=mk('button','cmprm','Bỏ bản này khỏi danh sách');rm.type='button';rm.onclick=()=>{cmpIds=cmpIds.filter(i=>i!==id);LS.set('cmp',cmpIds);renderCompare();};wrap.append(rm);}
+    list.append(wrap);return{id,q};
+  });
+  await Promise.all(blocks.map(async({id,q})=>{
+    try{await loadTr(id);}catch(e){q.textContent='Chưa tải được bản này. Hãy kiểm tra mạng.';return;}
+    if(cmpCtx!==x)return;
+    q.textContent='';
+    x.vs.forEach(v=>{const tx=vtOf(id,x.b,x.c,v);if(!tx)return;const sp=document.createElement('span');const su=document.createElement('sup');su.textContent=v;sp.append(su);const body=document.createElement('span');body.innerHTML=fmtVerse(tx)+' ';sp.append(body);q.append(sp);});
+    if(!q.childNodes.length)q.textContent='Bản này không có câu này.';
+    else q.append(mk('span','cref',refVs(x.b,x.c,x.vs)));
+  }));
+}
+$('#selCmp').onclick=openCompare;
+$('#cmpAdd').onclick=()=>{
+  const box=$('#cmpPick');if(!box.hidden){box.hidden=true;return;}
+  box.hidden=false;box.textContent='';box.append(mk('h3','lbl','Chọn các bản muốn so sánh'));
+  const row=mk('div','tagrow');
+  TRS.forEach(t=>{
+    if(t.id===S.tr)return;
+    const b=mk('button','tag');b.type='button';b.style.setProperty('--h',212);b.setAttribute('aria-pressed',cmpIds.includes(t.id)?'true':'false');b.textContent=`${cmpAb(t.id)} · ${t.name}`;
+    b.onclick=()=>{cmpIds=cmpIds.includes(t.id)?cmpIds.filter(i=>i!==t.id):cmpIds.concat([t.id]);LS.set('cmp',cmpIds);b.setAttribute('aria-pressed',cmpIds.includes(t.id)?'true':'false');renderCompare();};
+    row.append(b);
+  });
+  box.append(row);
+};
+$('#cmpCopy').onclick=()=>{
+  const x=cmpCtx;if(!x)return;
+  const ids=[S.tr,...cmpIds.filter(i=>i!==S.tr)].filter(i=>TRMAP[i]&&S.bible[i]);
+  const txt=ids.map(id=>`${cmpAb(id)} (${TRMAP[id].name})\n`+x.vs.map(v=>v+' '+vtOf(id,x.b,x.c,v)).join('\n')+`\n${refVs(x.b,x.c,x.vs)}`).join('\n\n');
+  const fail=()=>toast('Máy này chưa cho phép chép tự động.');
+  try{navigator.clipboard.writeText(txt).then(()=>toast('Đã chép các bản dịch.'),fail);}catch(e){fail();}
+};
 $('#selNote').onclick=openNoteForSel;
 $('#selClear').onclick=clearSel;
 $('#selCopy').onclick=()=>{
