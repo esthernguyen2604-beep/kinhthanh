@@ -231,6 +231,9 @@ body.pen-on .paper{-webkit-user-select:none;user-select:none}
 .recent{display:flex;flex-wrap:wrap;gap:8px}
 .recent button{min-height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--paper);cursor:pointer;font-size:13px;color:var(--ink)}
 
+.notehead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+#noteText{display:block;width:100%;box-sizing:border-box;min-height:120px;resize:vertical;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);font:17px/1.6 var(--f-text)}
+.nbtext.mine{color:var(--ink);-webkit-line-clamp:5;white-space:pre-wrap}
 /* so sánh bản dịch */
 .cmplist{display:flex;flex-direction:column;gap:18px}
 .cmphead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:8px}
@@ -352,6 +355,10 @@ body.pen-on .paper{-webkit-user-select:none;user-select:none}
   <div class="card" role="dialog" aria-modal="true" aria-labelledby="noteRef">
     <div class="cardhead"><div><h2 id="noteRef"></h2><div class="sub" id="noteTr"></div></div><button type="button" class="btn primary" id="noteDone">Xong</button></div>
     <blockquote class="vquote" id="noteVerse"></blockquote>
+    <div>
+      <div class="notehead"><h3 class="lbl" style="margin:0">Ghi chú gõ chữ</h3><button type="button" class="btn" id="noteInsert">Chèn câu Kinh Thánh</button></div>
+      <textarea id="noteText" rows="4" maxlength="20000" placeholder="Gõ hoặc dán suy ngẫm của bạn ở đây…" aria-label="Ghi chú gõ chữ"></textarea>
+    </div>
     <div id="padPenSlot"></div>
     <div class="padwrap" id="padWrap">
       <div class="pad" id="pad">
@@ -1260,7 +1267,8 @@ function openNoteKey(key,vsNew){
   const m=key?S.meta[key]:null;const vs=m?noteVs(m):(vsNew||[]);if(!vs.length)return false;
   flushInk();
   const bid=BOOKS[S.b][0];if(!key)key=`vn:${bid}:${S.c}:${vs[0]}-${rid()}`;
-  note={key,ikey:'vni'+key.slice(2),b:S.b,c:S.c,v:vs[0],vs,tags:m&&Array.isArray(m.tags)?m.tags.slice():[],created:(m&&m.created)||Date.now(),loaded:false,dirty:false};
+  note={key,ikey:'vni'+key.slice(2),b:S.b,c:S.c,v:vs[0],vs,tags:m&&Array.isArray(m.tags)?m.tags.slice():[],text:m&&typeof m.text==='string'?m.text:'',created:(m&&m.created)||Date.now(),loaded:false,dirty:false};
+  $('#noteText').value=note.text;
   $('#noteRef').textContent='Ghi chú '+refVs(S.b,S.c,vs);$('#noteTr').textContent=TRMAP[S.tr].name;
   $('#noteVerse').innerHTML=vs.map(v=>`<span class="qv">${v}</span>${fmtVerse(verseText(S.b,S.c,v))}`).join(' ');
   loadNoteInk(key,m);
@@ -1279,27 +1287,37 @@ async function loadNoteInk(key,m){
   if(!note||note.key!==key)return;
   padSurface.setStrokes(d&&Array.isArray(d.strokes)?d.strokes:[]);note.loaded=true;pl.hidden=true;
 }
+$('#noteText').addEventListener('input',e=>{if(!note)return;note.text=e.target.value;note.dirty=true;clearTimeout(padTimer);padTimer=setTimeout(saveNote,900);});
+$('#noteInsert').onclick=()=>{
+  if(!note)return;const ta=$('#noteText');
+  const txt=note.vs.map(v=>verseText(note.b,note.c,v)).filter(Boolean).join(' ');
+  const ins=`“${txt}” (${refVs(note.b,note.c,note.vs)} · ${TRMAP[S.tr].name})\n`;
+  const s=ta.selectionStart==null?ta.value.length:ta.selectionStart,e2=ta.selectionEnd==null?s:ta.selectionEnd;
+  const pre=ta.value.slice(0,s),post=ta.value.slice(e2);const lead=pre&&!pre.endsWith('\n')?'\n':'';
+  ta.value=pre+lead+ins+post;const pos=(pre+lead+ins).length;ta.focus();ta.setSelectionRange(pos,pos);
+  note.text=ta.value;note.dirty=true;clearTimeout(padTimer);padTimer=setTimeout(saveNote,900);
+};
 function onPadChange(){if(!note)return;note.dirty=true;clearTimeout(padTimer);padTimer=setTimeout(saveNote,900);}
 function saveNote(){
   clearTimeout(padTimer);if(!note||!note.dirty)return;note.dirty=false;
   const n=note;const strokes=padSurface.strokes.slice();const bid=BOOKS[n.b][0];
-  if(!strokes.length&&!n.tags.length){delete S.meta[n.key];Store.save(n.key,null);Store.save(n.ikey,null);}
+  if(!strokes.length&&!n.tags.length&&!n.text.trim()){delete S.meta[n.key];Store.save(n.key,null);Store.save(n.ikey,null);}
   else{
-    const now=Date.now();const meta={kind:'vn',b:bid,bi:n.b,c:n.c,v:n.v,vs:n.vs.slice(),tags:n.tags.slice(),n:strokes.length,created:n.created,updated:now};
+    const now=Date.now();const meta={kind:'vn',b:bid,bi:n.b,c:n.c,v:n.v,vs:n.vs.slice(),tags:n.tags.slice(),text:n.text,n:strokes.length,created:n.created,updated:now};
     const ink={kind:'vni',strokes,updated:now};if(JSON.stringify(ink).length>250000)toast('Trang ghi chú này đã gần hết chỗ lưu.');
     S.meta[n.key]=meta;Store.save(n.key,meta);Store.save(n.ikey,ink);
   }
   thumbs.delete(n.key);refreshMeta();
 }
 function closeNote(){
-  if(note&&S.view!=='med'&&(padSurface.strokes.length||note.tags.length)&&!S.viewHinted){S.viewHinted=true;toast('Đã lưu ghi chú. Bấm nút sổ trên thanh để hiện ghi chú trên trang.');}
+  if(note&&S.view!=='med'&&(padSurface.strokes.length||note.tags.length||note.text.trim())&&!S.viewHinted){S.viewHinted=true;toast('Đã lưu ghi chú. Bấm nút sổ trên thanh để hiện ghi chú trên trang.');}
   saveNote();note=null;$('#noteSheet').hidden=true;afterSheet();$('#penSlot').append($('#penbar'));active=reader;renderPenbar();}
 let delArmed=false,delTimer=0;
 function resetDel(){delArmed=false;clearTimeout(delTimer);$('#noteDel').textContent='Xóa ghi chú này';}
 $('#noteDel').onclick=()=>{
   if(!note)return;
   if(!delArmed){delArmed=true;$('#noteDel').textContent='Chạm lần nữa để xóa hẳn';delTimer=setTimeout(resetDel,3500);return;}
-  resetDel();padSurface.setStrokes([]);note.tags=[];note.dirty=true;closeNote();toast('Đã xóa ghi chú.');
+  resetDel();padSurface.setStrokes([]);note.tags=[];note.text='';$('#noteText').value='';note.dirty=true;closeNote();toast('Đã xóa ghi chú.');
 };
 $('#noteDone').onclick=closeNote;
 
@@ -1352,6 +1370,7 @@ function renderNotebook(){
     const ref=mk('div','nbref');ref.append(mk('span','',d.kind==='vn'?refVs(b,d.c,nvs):refCh(b,d.c)),mk('small','',fmtTime(d.updated)));card.append(ref);
     if(d.kind==='vn'){
       const t=nvs.map(v=>verseText(b,d.c,v)).filter(Boolean).map(fmtVerse).join(' ');if(t){const p=mk('p','nbtext');p.innerHTML=t;card.append(p);}
+      if(typeof d.text==='string'&&d.text.trim()){const p=mk('p','nbtext mine');p.textContent=d.text.trim();card.append(p);}
       const th=mk('div','thumb');th.dataset.key=it.k;card.append(th);
       if(io)io.observe(th);else loadThumb(th);
     }else{
@@ -1544,7 +1563,7 @@ $('#bkFile').onchange=async e=>{
   };
   row.append(yes,no);box.append(row);
 };
-const APP_VERSION='2026-11-27.1125';
+const APP_VERSION='2026-11-27.1131';
 $('#updBtn').onclick=async()=>{
   const b=$('#updBtn');b.disabled=true;
   try{
