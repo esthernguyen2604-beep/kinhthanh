@@ -260,8 +260,8 @@ body.ui-on .bottombar{transform:none}
 .cmprm{border:0;background:none;color:var(--muted);cursor:pointer;font:500 12px var(--f-ui);padding:4px 0}
 #cmpPick .tagrow{margin:0 0 4px}
 /* settings */
-.sheet.bottom{align-items:flex-end}
-.sheet.bottom .card{border-radius:16px 16px 12px 12px}
+.sheet.bottom{align-items:flex-start}
+.sheet.bottom .card{border-radius:16px 16px 12px 12px;margin-top:auto}
 .setgrid{display:flex;flex-direction:column;gap:16px}
 .sizeset{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center}
 .sizeset button{min-height:52px;border-radius:12px;border:1px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer;font-family:var(--f-text);font-weight:600}
@@ -296,6 +296,13 @@ body.ui-on .bottombar{transform:none}
   #trSel{min-height:36px;font-size:13px;max-width:150px}
   #nbBtn .t,#pctLabel .t,#modePen .t,#statusText,.brand,.status{display:none}
   #trSel{flex:1 1 140px;min-width:140px;max-width:100%}
+  .themes{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+  .tht .sw2{aspect-ratio:1/1;padding:0 16%;gap:5px}
+  .tht{font-size:11px}
+  .fontrow{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .fontrow button{min-height:44px;font-size:16px}
+  .lhrow button,.sizeset button{min-height:44px}
+  .setgrid{gap:12px}
   /* đọc toàn màn hình: thanh trên và dưới chỉ hiện khi cần */
   body::before{display:none}
   .chrome{position:fixed;left:0;right:0;top:0;margin:0;z-index:30;transform:translateY(-115%);transition:transform .2s ease;padding-top:env(safe-area-inset-top,0px);box-shadow:var(--shadow)}
@@ -1648,7 +1655,7 @@ $('#bkFile').onchange=async e=>{
   };
   row.append(yes,no);box.append(row);
 };
-const APP_VERSION='2026-11-27.1204';
+const APP_VERSION='2026-11-27.1213';
 $('#updBtn').onclick=async()=>{
   const b=$('#updBtn');b.disabled=true;
   try{
