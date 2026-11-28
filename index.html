@@ -350,6 +350,17 @@ body.ui-on .bottombar{transform:none}
   .spacer{display:none}
 }
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+/* kieu doc lien tren dien thoai: chu tran vien, so cau nho, so chuong lon */
+.paper.narrow.flow{--ml:18px;--vw:364px}
+.paper.flow .phead{height:auto;padding:26px 0 10px;display:block}
+.paper.flow .pch,.paper.flow .ptr{display:none}
+.paper.flow .pbook{font-size:12px}
+.paper.flow .dropc{float:left;font-family:var(--f-text);font-weight:300;font-size:calc(var(--lh,36px) * 2.3);line-height:calc(var(--lh,36px) * 2);margin:0 10px 0 -2px;color:var(--muted);letter-spacing:-.02em}
+.paper.flow .v{display:inline}
+.paper.flow .vn{position:static;display:inline;width:auto;height:auto;padding:0 3px 0 5px;font:600 .62em/0 var(--f-ui);vertical-align:super;border-radius:3px}
+.paper.flow .v[data-v="1"] .vn{display:none}
+.paper.flow .vmark{position:relative;left:auto;top:auto;display:inline-grid;vertical-align:middle;margin-right:3px}
+.paper.flow .v.inote::before{display:none}
 </style>
 
 <div class="chrome" id="chrome">
@@ -1021,12 +1032,12 @@ const FONTS={
 const LHS={gon:{name:'Gọn',r:1.5},vua:{name:'Vừa',r:1.8},rong:{name:'Rộng',r:2.1}};
 const FS_MIN=16,FS_MAX=32,FS_STEP=2;
 const DEF_TYPO={fs:20,lh:'vua',ff:'literata',lay:'w'};
-const curLay=()=>window.innerWidth<700?'n':'w';
+const curLay=()=>window.innerWidth<700?'f':'w';
 const globalEff=()=>Object.assign({},S.typo,{lay:curLay()});
 function cleanTypo(t){
   const d=Object.assign({},DEF_TYPO);
   if(t&&typeof t==='object'){
-    if(t.lay==='n')d.lay='n';
+    if(t.lay==='n'||t.lay==='f')d.lay=t.lay;
     if(isFinite(+t.fs))d.fs=clamp(Math.round(+t.fs/FS_STEP)*FS_STEP,FS_MIN,FS_MAX);
     if(LHS[t.lh])d.lh=t.lh;if(FONTS[t.ff])d.ff=t.ff;
   }
@@ -1086,7 +1097,7 @@ function fontReady(t){
 }
 function applyTypo(t){
   S.eff=Object.assign({},t);
-  PAPER_W=t.lay==='n'?400:880;paper.classList.toggle('narrow',t.lay==='n');
+  PAPER_W=t.lay==='w'?880:400;paper.classList.toggle('narrow',t.lay!=='w');paper.classList.toggle('flow',t.lay==='f');
   paper.style.setProperty('--fs',t.fs+'px');paper.style.setProperty('--lh',lhPx(t)+'px');paper.style.setProperty('--f-page',FONTS[t.ff].css);
 }
 async function reflow(t,token){
@@ -1133,7 +1144,7 @@ async function renderChapter(keepScroll){
     if(token!==renderToken)return;
     $('#pLoading').hidden=true;
   }
-  const vs=(B[S.b]&&B[S.b][S.c-1])||[];let h='';
+  const vs=(B[S.b]&&B[S.b][S.c-1])||[];let h=S.eff.lay==='f'?`<span class="dropc" aria-hidden="true">${S.c}</span>`:'';
   const FB=S.fn[S.tr]&&S.fn[S.tr][S.b];const FC=(FB&&FB[S.c])||{};let fnN=0;S.curFn={};
   for(let i=0;i<vs.length;i++){
     const t=vs[i];if(t==null)continue;const v=i+1;
@@ -1881,7 +1892,7 @@ $('#bkFile').onchange=async e=>{
   };
   row.append(yes,no);box.append(row);
 };
-const APP_VERSION='2026-11-28.1902';
+const APP_VERSION='2026-11-28.1914';
 $('#updBtn').onclick=async()=>{
   const b=$('#updBtn');b.disabled=true;
   try{
